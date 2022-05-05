@@ -1,0 +1,14 @@
+1 lot1 A
+2 lot2 A
+3 lot3 A
+4 lot4 A
+5 lot1 D
+6 lot5 A
+7 lot2 D
+8 lot3 D
+10 lot6 A
+11 lot7 A
+12 lot5 D
+13 lot4 D
+16 lot6 D
+16 lot7 D
