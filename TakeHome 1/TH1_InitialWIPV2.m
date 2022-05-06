@@ -55,7 +55,7 @@ Data_Workstation3_extracted(3,find(Data_Workstation3_extracted(3,:)==4))=0;
 
 %% Determining initial wip
 % Choosing data source
-data = Data_Workstation1_extracted;
+data = Data_Workstation2_extracted;
 % Determining wip
 departinglots = data(2,find(data(3,:)==0));
 arrivinglots = data(2,find(data(3,:)==1));
@@ -81,7 +81,7 @@ while isempty(initialwiplots) == 0
 end
 
 %% Distribution calculations
-z=1; dEPT = []; dOvert = []; ibatch = batch(2,1); % Initialising
+z=1; dEPT = []; dOvert = []; ibatch = data(2,1); batchinfo = []; % Initialising
 while z < size(data,2)+1
     datatemp = data(:,z); % read event data
     tau = datatemp(1); i = datatemp(2); ev = datatemp(3);
@@ -93,24 +93,28 @@ while z < size(data,2)+1
         end
         xs = [xs; [i, size(xs,1)]];
     elseif ev==0 % departure
-        if tau-s == 0   % If EPT = 0, a batch left the system
-            ibatch = [data(2,z-1),ibatch]; % Determine batch ids
-        elseif size(ibatch,2)==1 % lot i was not part of a batch
-            batchinfo = [batchinfo; 1];
-            ibatch = i; % Reset ibatch
-        else
-            zbatch = []; % Variable for determining lot arrival
+        if z>min(find(data(3,:)==0))+1 % No batch can be formed at first departure
+            if tau-s == 0   % If EPT = 0, a batch left the system
+                ibatch = [data(2,z-1),ibatch]; % Determine batch ids
+            elseif size(ibatch,2)==1 % lot i was not part of a batch
+                batchinfo = [batchinfo; 1];
+                ibatch = i; % Reset ibatch
+            else
+                zbatch = []; % Variable for determining lot arrival
                 for za = 1:1:size(ibatch,2)
                     zbatch = [zbatch, find(data(2,:)==ibatch(za) & data(3,:) == 1)]; % Arrivals of batch lots
                 end
-                s = max(data(1,zbatch)); % Arrival time of batch is last lot arrival
-                batchlot = find(data(1,zbatch) == s)
-            batchinfo = [batchinfo; size(ibatch,2)];
-            ibatch = i; % New lot i is not part of batch, reset ibatch            
+                if isempty(zbatch) == 0 % If batch is within uncertainEPT, skip reassigning s
+                    s = max(data(1,zbatch)); % Arrival time of batch is last lot arrival
+                end
+                batchinfo = [batchinfo; size(ibatch,2)];
+                ibatchold = ibatch; % Stores old batch lot numbers for ignoring uncertain EPT of first batch
+                ibatch = i; % New lot i is not part of batch, reset ibatch 
+            end
         end
-        if isempty( setdiff(i,uncertainEPT) ) == 0 & size(ibatch,2) == 1 % If its EPT is uncertain, exclude from distribution & If a batch is forming, stall EPT
+        % If the lot's or batch's EPT is uncertain, exclude from distribution & If a batch is forming, stall EPT
+        if isempty( setdiff(uncertainEPT, ibatch) ) == 0 & size(ibatch,2) == 1
             dEPT = [dEPT; [tau-s sw]]; % EPT distribution
-            bs = [bs; batchsize];
         end
         [xs, k, aw] = detOvert(xs, i, uncertainOvert);
         if isempty( setdiff(i,uncertainOvert) ) == 0 % If its Overtake is uncertain, exclude from distribution
