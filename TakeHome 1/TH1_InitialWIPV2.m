@@ -81,7 +81,7 @@ while isempty(initialwiplots) == 0
 end
 
 %% Distribution calculations
-z=1; dEPT = []; dOvert = []; % Initialising
+z=1; dEPT = []; dOvert = []; ibatch = batch(2,1); % Initialising
 while z < size(data,2)+1
     datatemp = data(:,z); % read event data
     tau = datatemp(1); i = datatemp(2); ev = datatemp(3);
@@ -93,8 +93,24 @@ while z < size(data,2)+1
         end
         xs = [xs; [i, size(xs,1)]];
     elseif ev==0 % departure
-        if isempty( setdiff(i,uncertainEPT) ) == 0 % If its EPT is uncertain, exclude from distribution
+        if tau-s == 0   % If EPT = 0, a batch left the system
+            ibatch = [data(2,z-1),ibatch]; % Determine batch ids
+        elseif size(ibatch,2)==1 % lot i was not part of a batch
+            batchinfo = [batchinfo; 1];
+            ibatch = i; % Reset ibatch
+        else
+            zbatch = []; % Variable for determining lot arrival
+                for za = 1:1:size(ibatch,2)
+                    zbatch = [zbatch, find(data(2,:)==ibatch(za) & data(3,:) == 1)]; % Arrivals of batch lots
+                end
+                s = max(data(1,zbatch)); % Arrival time of batch is last lot arrival
+                batchlot = find(data(1,zbatch) == s)
+            batchinfo = [batchinfo; size(ibatch,2)];
+            ibatch = i; % New lot i is not part of batch, reset ibatch            
+        end
+        if isempty( setdiff(i,uncertainEPT) ) == 0 & size(ibatch,2) == 1 % If its EPT is uncertain, exclude from distribution & If a batch is forming, stall EPT
             dEPT = [dEPT; [tau-s sw]]; % EPT distribution
+            bs = [bs; batchsize];
         end
         [xs, k, aw] = detOvert(xs, i, uncertainOvert);
         if isempty( setdiff(i,uncertainOvert) ) == 0 % If its Overtake is uncertain, exclude from distribution
